@@ -11,7 +11,7 @@ class Category(Base):
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     products: Mapped[list["Product"]] = relationship(back_populates='category')
-    parent_id: Mapped[int|None] = mapped_column(ForeignKey('products.id'))
+    parent_id: Mapped[int|None] = mapped_column(ForeignKey('categories.id'))
     parent: Mapped["Category | None"] = relationship("Category",
                                                         back_populates="children",
                                                         remote_side="Category.id")
