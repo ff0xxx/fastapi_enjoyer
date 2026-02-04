@@ -24,7 +24,7 @@ async def get_all_categories(db: AsyncSession = Depends(get_async_db)):
     categories = result.all()
     return categories
 
-
+# TODO: защитить не-гет эндпоинты с get_current_seller
 @router.post("/", response_model=CategorySchema, status_code=status.HTTP_201_CREATED)
 async def create_category(category: CategoryCreate, db: AsyncSession = Depends(get_async_db)):
     """
