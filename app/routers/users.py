@@ -6,8 +6,8 @@ import jwt
 
 from app.db_depends import get_async_db
 from app.models.users import User as UserModel
-from app.schemas import User as UserSchema, UserCreate, RefreshTokenRequest
-from app.auth import hash_password, verify_password, create_access_token, create_refresh_token
+from app.schemas import User as UserSchema, UserCreate, UserUpdateRole, RefreshTokenRequest
+from app.auth import hash_password, verify_password, create_access_token, create_refresh_token, get_current_admin
 from app.config import SECRET_KEY, ALGORITHM
 
 
@@ -28,6 +28,18 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_async_db)
     db.add(db_user)
     await db.commit()
     # await db.refresh(db_user)
+    return db_user
+
+
+@router.patch('/role-update', response_model=UserSchema)
+async def update_user_role(user: UserUpdateRole,
+                           db: AsyncSession = Depends(get_async_db),
+                           current_user: UserModel = Depends(get_current_admin)):
+    db_user = await db.scalar(select(UserModel).where(UserModel.id==user.id, UserModel.is_active==True))
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User w ts ID not found')
+    db_user.role = user.role
+    await db.commit()
     return db_user
 
 

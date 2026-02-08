@@ -6,9 +6,10 @@ from sqlalchemy import select, update
 from app.db_depends import get_db, get_async_db
 from app.schemas import Category as CategorySchema, CategoryCreate
 from app.models.categories import Category as CategoryModel
+from app.models.users import User as UserModel
+from app.auth import get_current_admin
 
 
-# Создаём маршрутизатор с префиксом и тегом
 router = APIRouter(
     prefix="/categories",
     tags=["categories"],
@@ -24,9 +25,10 @@ async def get_all_categories(db: AsyncSession = Depends(get_async_db)):
     categories = result.all()
     return categories
 
-# TODO: защитить не-гет эндпоинты с get_current_seller
 @router.post("/", response_model=CategorySchema, status_code=status.HTTP_201_CREATED)
-async def create_category(category: CategoryCreate, db: AsyncSession = Depends(get_async_db)):
+async def create_category(category: CategoryCreate, 
+                          db: AsyncSession = Depends(get_async_db),
+                          current_user: UserModel = Depends(get_current_admin)):
     """
     Создаёт новую категорию.
     """
@@ -49,7 +51,9 @@ async def create_category(category: CategoryCreate, db: AsyncSession = Depends(g
 
 
 @router.put("/{category_id}", response_model=CategorySchema)
-async def update_category(category_id: int, new_category: CategoryCreate, db: AsyncSession = Depends(get_async_db)):
+async def update_category(category_id: int, new_category: CategoryCreate, 
+                          db: AsyncSession = Depends(get_async_db),
+                          current_user: UserModel = Depends(get_current_admin)):
     """
     Обновляет категорию по её ID.
     """
@@ -79,7 +83,9 @@ async def update_category(category_id: int, new_category: CategoryCreate, db: As
 
 
 @router.delete("/{category_id}", response_model=CategorySchema)
-async def delete_category(category_id: int, db: AsyncSession = Depends(get_async_db)):
+async def delete_category(category_id: int, 
+                          db: AsyncSession = Depends(get_async_db),
+                          current_user: UserModel = Depends(get_current_admin)):
     """
     Удаляет категорию по её ID.
     """

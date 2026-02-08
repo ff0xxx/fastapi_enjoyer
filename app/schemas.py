@@ -63,6 +63,12 @@ class UserCreate(BaseModel):
     role: str = Field(default='buyer', pattern='^(buyer|seller)$', description="Роль: 'buyer' или 'seller'")
 
 
+class UserUpdateRole(BaseModel):
+    id: int
+    role: str = Field(pattern='^(buyer|seller|admin)$', description='Роль. Админ волен дать любую')
+    model_config = ConfigDict(use_enum_values=True)
+
+
 class User(BaseModel):
     id: int 
     email: EmailStr
