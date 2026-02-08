@@ -3,10 +3,11 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db_depends import get_async_db
-from app.schemas import ProductCreate, Product as ProductSchema
+from app.schemas import ProductCreate, Product as ProductSchema, Review as ReviewSchema
 from app.models.categories import Category as CategoryModel
 from app.models.products import Product as ProductModel
 from app.models.users import User as UserModel
+from app.models.reviews import Review as ReviewModel 
 from app.auth import get_current_seller
 
 
@@ -135,3 +136,13 @@ async def delete_product(product_id: int,
     await db.commit()
     await db.refresh(product)  # Для возврата is_active = False
     return product
+
+
+@router.get('/{product_id}/reviews/', response_model=list[ReviewSchema])
+async def get_reviews_by_product_id(product_id: int, db: AsyncSession = Depends(get_async_db)):
+    product = await db.scalar(select(ProductModel).where(ProductModel.id==product_id, ProductModel.is_active==True))
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Product not found or inactive')
+    result = await db.scalars(select(ReviewModel).where(ReviewModel.product_id==product_id, ReviewModel.is_active==True))
+    reviews = result.all()
+    return reviews
