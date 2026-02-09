@@ -58,6 +58,15 @@ class Product(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ProductList(BaseModel):
+    items: list[Product]
+    total: int = Field(ge=0)
+    page: int = Field(ge=1)
+    page_size: int = Field(ge=1)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserCreate(BaseModel):
     email: EmailStr = Field(description="E-mail пользователя")
     password: SecretStr = Field(min_length=8, description="Пароль (минимум 8 символов)")
@@ -94,4 +103,4 @@ class Review(BaseModel):
     grade: int = Field(ge=1, le=5)
     is_active: bool
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attrwibutes=True)
