@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
-from app.auth import get_current_buyer, get_current_user
+from app.auth import get_current_user
 from app.db_depends import get_async_db
 from app.models.users import User as UserModel
 from app.models.products import Product as ProductModel
