@@ -1,6 +1,7 @@
 from fastapi import APIRouter, status, Depends, HTTPException, Query
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Literal
 
 from app.db_depends import get_async_db
 from app.schemas import ProductCreate, Product as ProductSchema, ProductList, Review as ReviewSchema
@@ -21,14 +22,42 @@ router = APIRouter(
 @router.get("/", response_model=ProductList)
 async def get_all_products(page: int = Query(1, ge=1),
                            page_size: int = Query(20, ge=1, le=100),
+                           category_id: int|None = Query(None),
+                           min_price: float|None = Query(None, ge=0),
+                           max_price: float|None = Query(None, ge=0),
+                           in_stock: bool|None = Query(None),
+                           seller_id: int|None = Query(None),
+                           sort_by_created: bool = Query(False),
+                           sort_order: Literal['asc', 'desc'] = Query('asc'), 
                            db: AsyncSession = Depends(get_async_db)):
-    total_stmt = select(func.count()).select_from(ProductModel).where(ProductModel.is_active==True)
+    filters = [ProductModel.is_active==True]
+    if min_price is not None and max_price is not None and min_price > max_price:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='min_price must be < max_price')
+    
+    # Мы против неявных преобразований типов в проде, поэтому is not None!
+    if category_id is not None:
+        filters.append(ProductModel.category_id == category_id)
+    if min_price is not None:
+        filters.append(ProductModel.price >= min_price)
+    if max_price is not None:
+        filters.append(ProductModel.price <= max_price)
+    if in_stock is not None:
+        filters.append(ProductModel.stock > 0 if in_stock else ProductModel.stock == 0)
+    if seller_id is not None:
+        filters.append(ProductModel.seller_id == seller_id)
+
+    total_stmt = select(func.count()).select_from(ProductModel).where(*filters)
     total = await db.scalar(total_stmt) or 0
 
+    order = ProductModel.id
+    if sort_by_created:
+        order = ProductModel.created_at
+    if sort_order == 'desc':
+        order = order.desc()
     products_stmt = (
         select(ProductModel)
-        .where(ProductModel.is_active==True)
-        .order_by(ProductModel.id)
+        .where(*filters)
+        .order_by(order)
         .offset((page-1)*page_size)
         .limit(page_size)
     )
