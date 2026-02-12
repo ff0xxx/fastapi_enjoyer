@@ -1,5 +1,5 @@
 from fastapi import APIRouter, status, Depends, HTTPException, Query
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Literal
 
@@ -23,6 +23,7 @@ router = APIRouter(
 async def get_all_products(page: int = Query(1, ge=1),
                            page_size: int = Query(20, ge=1, le=100),
                            category_id: int|None = Query(None),
+                           search: str|None = Query(None, min_length=1),
                            min_price: float|None = Query(None, ge=0),
                            max_price: float|None = Query(None, ge=0),
                            in_stock: bool|None = Query(None),
@@ -30,10 +31,10 @@ async def get_all_products(page: int = Query(1, ge=1),
                            sort_by_created: bool = Query(False),
                            sort_order: Literal['asc', 'desc'] = Query('asc'), 
                            db: AsyncSession = Depends(get_async_db)):
-    filters = [ProductModel.is_active==True]
     if min_price is not None and max_price is not None and min_price > max_price:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='min_price must be < max_price')
     
+    filters = [ProductModel.is_active==True]
     # Мы против неявных преобразований типов в проде, поэтому is not None!
     if category_id is not None:
         filters.append(ProductModel.category_id == category_id)
@@ -47,6 +48,26 @@ async def get_all_products(page: int = Query(1, ge=1),
         filters.append(ProductModel.seller_id == seller_id)
 
     total_stmt = select(func.count()).select_from(ProductModel).where(*filters)
+
+    rank_col = None
+    if search:
+        search_value = search.strip()
+        if search_value:
+            ts_query_en = func.websearch_to_tsquery('english', search_value)
+            ts_query_ru = func.websearch_to_tsquery('russian', search_value)
+            ts_match_any = or_(
+                ProductModel.tsv.op('@@')(ts_query_en),
+                ProductModel.tsv.op('@@')(ts_query_ru),
+            )
+            filters.append(ts_match_any)
+
+            rank_col = func.greatest(
+                func.ts_rank_cd(ProductModel.tsv, ts_query_en),
+                func.ts_rank_cd(ProductModel.tsv, ts_query_ru),
+            ).label("rank")
+            total_stmt = select(func.count()).select_from(ProductModel).where(*filters)
+
+
     total = await db.scalar(total_stmt) or 0
 
     order = ProductModel.id
@@ -54,14 +75,28 @@ async def get_all_products(page: int = Query(1, ge=1),
         order = ProductModel.created_at
     if sort_order == 'desc':
         order = order.desc()
-    products_stmt = (
-        select(ProductModel)
-        .where(*filters)
-        .order_by(order)
-        .offset((page-1)*page_size)
-        .limit(page_size)
-    )
-    items = (await db.scalars(products_stmt)).all()
+
+    if rank_col is not None:
+        products_stmt = (
+            select(ProductModel, rank_col)
+            .where(*filters)
+            .order_by(desc(rank_col), order)
+            .offset((page-1)*page_size)
+            .limit(page_size)
+        )
+        result = await db.execute(products_stmt)
+        rows = result.all()
+        items = [row[0] for row in rows]
+    else:
+        products_stmt = (
+            select(ProductModel)
+            .where(*filters)
+            .order_by(order)
+            .offset((page-1)*page_size)
+            .limit(page_size)
+        )
+        items = (await db.scalars(products_stmt)).all()
+
     products_list = ProductList(items=items, 
                                 total=total,
                                 page=page, 
