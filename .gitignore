@@ -4,3 +4,4 @@ venv/
 alembic.ini
 .env
 media/
+*log
