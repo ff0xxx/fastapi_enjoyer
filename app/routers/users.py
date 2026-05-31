@@ -8,9 +8,10 @@ from app.db_depends import get_async_db
 from app.models.users import User as UserModel
 from app.schemas import User as UserSchema, UserCreate, UserUpdateRole, RefreshTokenRequest
 from app.auth import hash_password, verify_password, create_access_token, create_refresh_token, get_current_admin
-from app.config import SECRET_KEY, ALGORITHM
+from app.config import Settings
 
 
+settings = Settings()
 router = APIRouter(prefix='/users', tags=['users'])
 
 
@@ -62,7 +63,7 @@ async def get_refresh(body: RefreshTokenRequest, db: AsyncSession = Depends(get_
                                           headers={'WWW-Authenticate': 'Bearer'})
     token = body.refresh_token
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
 
         email: str|None = payload.get('sub')
         token_type: str|None = payload.get('token_type')
@@ -88,7 +89,7 @@ async def get_refresh(body: RefreshTokenRequest, db: AsyncSession = Depends(get_
                                           headers={'WWW-Authenticate': 'Bearer'})
     token = body.refresh_token
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
 
         email: str|None = payload.get('sub')
         token_type: str|None = payload.get('token_type')

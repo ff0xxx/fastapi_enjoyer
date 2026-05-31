@@ -6,11 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import jwt
 from datetime import datetime, timezone, timedelta
 
-from app.config import SECRET_KEY, ALGORITHM
+from app.config import Settings
 from app.db_depends import get_async_db
 from app.models.users import User as UserModel
 
 
+settings = Settings()
 oath2_schema = OAuth2PasswordBearer(tokenUrl='/users/token')
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
@@ -31,7 +32,7 @@ def create_access_token(data: dict):
         'exp': expire,
         'token_type': 'access'
     })
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
@@ -40,7 +41,7 @@ def create_refresh_token(data: dict):
         'exp': expire,
         'token_type': 'refresh'
     })
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
 
 async def get_current_user(token: str = Depends(oath2_schema), db: AsyncSession = Depends(get_async_db)):
@@ -51,7 +52,7 @@ async def get_current_user(token: str = Depends(oath2_schema), db: AsyncSession 
     )
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         email: str = payload.get('sub')
         if not email:
             raise credentials_exception
