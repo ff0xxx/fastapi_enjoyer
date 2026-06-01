@@ -8,10 +8,9 @@ from app.db_depends import get_async_db
 from app.models.users import User as UserModel
 from app.schemas import User as UserSchema, UserCreate, UserUpdateRole, RefreshTokenRequest
 from app.auth import hash_password, verify_password, create_access_token, create_refresh_token, get_current_admin
-from app.config import Settings
+from app.config import Settings, get_settings
 
 
-settings = Settings()
 router = APIRouter(prefix='/users', tags=['users'])
 
 
@@ -57,7 +56,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
 
 
 @router.post('/refresh-token')
-async def get_refresh(body: RefreshTokenRequest, db: AsyncSession = Depends(get_async_db)):
+async def get_refresh(body: RefreshTokenRequest, db: AsyncSession = Depends(get_async_db),
+                      settings: Settings = Depends(get_settings)):
     credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                                           detail='Could not validate refresh token',
                                           headers={'WWW-Authenticate': 'Bearer'})
@@ -83,7 +83,8 @@ async def get_refresh(body: RefreshTokenRequest, db: AsyncSession = Depends(get_
 
 
 @router.post('/access-token')
-async def get_refresh(body: RefreshTokenRequest, db: AsyncSession = Depends(get_async_db)):
+async def get_refresh(body: RefreshTokenRequest, db: AsyncSession = Depends(get_async_db),
+                      settings: Settings = Depends(get_settings)):
     credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                                           detail='Could not validate refresh token',
                                           headers={'WWW-Authenticate': 'Bearer'})

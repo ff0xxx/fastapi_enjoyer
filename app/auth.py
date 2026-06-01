@@ -6,12 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import jwt
 from datetime import datetime, timezone, timedelta
 
-from app.config import Settings
+from app.config import Settings, get_settings
 from app.db_depends import get_async_db
 from app.models.users import User as UserModel
 
 
-settings = Settings()
+
 oath2_schema = OAuth2PasswordBearer(tokenUrl='/users/token')
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
@@ -25,7 +25,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def create_access_token(data: dict):
+def create_access_token(data: dict, settings: Settings = Depends(get_settings)):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({
@@ -34,7 +34,7 @@ def create_access_token(data: dict):
     })
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
-def create_refresh_token(data: dict):
+def create_refresh_token(data: dict, settings: Settings = Depends(get_settings)):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({
@@ -44,7 +44,8 @@ def create_refresh_token(data: dict):
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
 
-async def get_current_user(token: str = Depends(oath2_schema), db: AsyncSession = Depends(get_async_db)):
+async def get_current_user(settings: Settings = Depends(get_settings), 
+                           token: str = Depends(oath2_schema), db: AsyncSession = Depends(get_async_db)):
     credentials_exception = HTTPException(
         status_code=401,
         detail="Could not validate credentials",
